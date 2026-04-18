@@ -1,123 +1,148 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-  <link rel="stylesheet" href="index.css" type="text/css">
-  <script src="https://unpkg.com/@solana/web3.js@v1.33.0/lib/index.iife.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chart Comparison Generator</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f7fa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+input {
+    margin: 10px;
+}
+
+canvas {
+    margin-top: 20px;
+    border-radius: 20px;
+}
+
+button {
+    margin-top: 15px;
+    padding: 10px 20px;
+    border: none;
+    background: #4a6cf7;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+}
+</style>
 </head>
 
 <body>
 
-  <div class="column">
-    <img class="Image" src="https://cryptologos.cc/logos/solana-sol-logo.png?v=024" alt="Solana">
-    <button id="connect_button" class="button-9" onclick="connectWallet()">Connect</button>
-    <input class="Input" type="number" placeholder="Sol to send" id="quantity" />
-    <button class="button-9" onclick="sendButtonClick()">
-      Send
-    </button>
-    <p id="status_p"><span id="status"></span></p>
-  </div>
-  <script>
-    var wallet;
-    const lamports_per_sol = solanaWeb3.LAMPORTS_PER_SOL;
-    function connectWallet() {
-      (async () => {
-        try {
-          wallet = await window.solana.connect();
-        } catch (err) {
-          console.log(err);
-        }
-      })();
-      window.solana.on(
-        "connect",
-        () => (
-          document.getElementById("connect_button").innerText = "Connected"
-        )
-      );
+<div class="container">
+    <h2>Before / After Chart Generator</h2>
+    <input type="file" id="beforeInput" accept="image/*">
+    <input type="file" id="afterInput" accept="image/*">
+    <br>
+    <button onclick="generate()">Generate</button>
+    <br>
+    <canvas id="canvas" width="1080" height="1350"></canvas>
+    <br>
+    <button onclick="download()">Download</button>
+</div>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+function loadImage(file) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.src = URL.createObjectURL(file);
+    });
+}
+
+function drawRoundedImage(img, x, y, w, h, radius) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    ctx.clip();
+
+    ctx.drawImage(img, x, y, w, h);
+    ctx.restore();
+}
+
+function drawShadow(x, y, w, h) {
+    ctx.fillStyle = "rgba(0,0,0,0.1)";
+    ctx.fillRect(x + 5, y + 10, w, h);
+}
+
+async function generate() {
+    const beforeFile = document.getElementById("beforeInput").files[0];
+    const afterFile = document.getElementById("afterInput").files[0];
+
+    if (!beforeFile || !afterFile) {
+        alert("Upload both images");
+        return;
     }
 
-    async function sendButtonClick() {
-      const receiverAddress = "39QcE4gSNztpjvq78aa45W6J9Pn551is52C2XxhSsDTR"
+    const beforeImg = await loadImage(beforeFile);
+    const afterImg = await loadImage(afterFile);
 
-      const quantity = document.getElementById("quantity").value
-      if (quantity != null && quantity != 0) {
-        document.getElementById("status_p").text = "Status";
-        document.getElementById("status_p").innerText = "Sending " + quantity + " SOL to " + ellipsizeAddress(receiverAddress) + " account address";
-        await signInTransactionAndSendMoney(receiverAddress, quantity)
-      } else {
-        document.getElementById("status_p").text = "Status";
-        document.getElementById("status_p").innerText = "Amount must be more than 0!"
-      }
+    // Background
+    ctx.fillStyle = "#f5f7fa";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    }
+    const targetHeight = 600;
+    const ratio1 = targetHeight / beforeImg.height;
+    const ratio2 = targetHeight / afterImg.height;
 
-    function ellipsizeAddress(str) {
-      if (str.length > 35) {
-        return str.substr(0, 8) + '...' + str.substr(str.length - 8, str.length);
-      }
-      return str;
-    }
+    const w1 = beforeImg.width * ratio1;
+    const w2 = afterImg.width * ratio2;
 
-    function signInTransactionAndSendMoney(destPubkeyStr, quantity) {
-      (async () => {
-        const network = "https://api.devnet.solana.com";
-        const connection = new solanaWeb3.Connection(network);
-        const transaction = new solanaWeb3.Transaction();
+    const gap = 40;
+    const totalWidth = w1 + w2 + gap;
 
-        try {
-          const lamports = quantity * lamports_per_sol;
+    const startX = (canvas.width - totalWidth) / 2;
+    const y = 400;
 
-          console.log("starting sendMoney");
-          const destPubkey = new solanaWeb3.PublicKey(destPubkeyStr);
-          const walletAccountInfo = await connection.getAccountInfo(
-            wallet.publicKey
-          );
-          console.log("wallet data size", walletAccountInfo?.data.length);
+    // Shadows
+    drawShadow(startX, y, w1, targetHeight);
+    drawShadow(startX + w1 + gap, y, w2, targetHeight);
 
-          const receiverAccountInfo = await connection.getAccountInfo(
-            destPubkey
-          );
-          console.log("receiver data size", receiverAccountInfo?.data.length);
+    // Images
+    drawRoundedImage(beforeImg, startX, y, w1, targetHeight, 20);
+    drawRoundedImage(afterImg, startX + w1 + gap, y, w2, targetHeight, 20);
 
-          const instruction = solanaWeb3.SystemProgram.transfer({
-            fromPubkey: wallet.publicKey,
-            toPubkey: destPubkey,
-            lamports,
-          });
-          let trans = await setWalletTransaction(instruction, connection);
+    // Labels
+    ctx.fillStyle = "#8c96aa";
+    ctx.font = "40px Arial";
+    ctx.fillText("Before", startX + 20, y - 40);
+    ctx.fillText("After", startX + w1 + gap + 20, y - 40);
+}
 
-          let signature = await signAndSendTransaction(
-            wallet,
-            trans,
-            connection
-          );
+function download() {
+    const link = document.createElement("a");
+    link.download = "chart.png";
+    link.href = canvas.toDataURL();
+    link.click();
+}
+</script>
 
-        } catch (e) {
-          console.warn("Failed", e);
-        }
-
-      })();
-
-      async function setWalletTransaction(instruction, connection) {
-        const transaction = new solanaWeb3.Transaction();
-        transaction.add(instruction);
-        transaction.feePayer = wallet.publicKey;
-        let hash = await connection.getRecentBlockhash();
-        console.log("blockhash", hash);
-        transaction.recentBlockhash = hash.blockhash;
-        return transaction;
-      }
-
-      async function signAndSendTransaction(wallet, transaction, connection) {
-        // Sign transaction, broadcast, and confirm
-        const { signature } = await window.solana.signAndSendTransaction(
-          transaction
-        );
-        await connection.confirmTransaction(signature);
-        return signature;
-      }
-    }
-  </script>
 </body>
-
 </html>
