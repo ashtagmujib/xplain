@@ -1,61 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chart Comparison Generator</title>
-
-<style>
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #f5f7fa;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-.container {
-    text-align: center;
-    margin-top: 20px;
-}
-
-input {
-    margin: 10px;
-}
-
-canvas {
-    margin-top: 20px;
-    border-radius: 20px;
-}
-
-button {
-    margin-top: 15px;
-    padding: 10px 20px;
-    border: none;
-    background: #4a6cf7;
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-}
-</style>
-</head>
-
-<body>
-
-<div class="container">
-    <h2>Before / After Chart Generator</h2>
-    <input type="file" id="beforeInput" accept="image/*">
-    <input type="file" id="afterInput" accept="image/*">
-    <br>
-    <button onclick="generate()">Generate</button>
-    <br>
-    <canvas id="canvas" width="1080" height="1350"></canvas>
-    <br>
-    <button onclick="download()">Download</button>
-</div>
-
 <script>
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -88,8 +30,8 @@ function drawRoundedImage(img, x, y, w, h, radius) {
 }
 
 function drawShadow(x, y, w, h) {
-    ctx.fillStyle = "rgba(0,0,0,0.1)";
-    ctx.fillRect(x + 5, y + 10, w, h);
+    ctx.fillStyle = "rgba(0,0,0,0.08)";
+    ctx.fillRect(x + 6, y + 12, w, h);
 }
 
 async function generate() {
@@ -108,32 +50,41 @@ async function generate() {
     ctx.fillStyle = "#f5f7fa";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const targetHeight = 600;
-    const ratio1 = targetHeight / beforeImg.height;
-    const ratio2 = targetHeight / afterImg.height;
+    const maxHeight = 700;
 
-    const w1 = beforeImg.width * ratio1;
-    const w2 = afterImg.width * ratio2;
+    function resize(img) {
+        const ratio = Math.min(1, maxHeight / img.height);
+        return {
+            width: img.width * ratio,
+            height: img.height * ratio
+        };
+    }
+
+    const b = resize(beforeImg);
+    const a = resize(afterImg);
 
     const gap = 40;
-    const totalWidth = w1 + w2 + gap;
+    const totalWidth = b.width + a.width + gap;
 
     const startX = (canvas.width - totalWidth) / 2;
-    const y = 400;
+
+    // ✅ Perfect vertical centering
+    const centerY = canvas.height / 2;
+    const y = centerY - (Math.max(b.height, a.height) / 2);
 
     // Shadows
-    drawShadow(startX, y, w1, targetHeight);
-    drawShadow(startX + w1 + gap, y, w2, targetHeight);
+    drawShadow(startX, y, b.width, b.height);
+    drawShadow(startX + b.width + gap, y, a.width, a.height);
 
     // Images
-    drawRoundedImage(beforeImg, startX, y, w1, targetHeight, 20);
-    drawRoundedImage(afterImg, startX + w1 + gap, y, w2, targetHeight, 20);
+    drawRoundedImage(beforeImg, startX, y, b.width, b.height, 20);
+    drawRoundedImage(afterImg, startX + b.width + gap, y, a.width, a.height, 20);
 
     // Labels
     ctx.fillStyle = "#8c96aa";
-    ctx.font = "40px Arial";
-    ctx.fillText("Before", startX + 20, y - 40);
-    ctx.fillText("After", startX + w1 + gap + 20, y - 40);
+    ctx.font = "36px Arial";
+    ctx.fillText("Before", startX + 10, y - 30);
+    ctx.fillText("After", startX + b.width + gap + 10, y - 30);
 }
 
 function download() {
@@ -143,6 +94,3 @@ function download() {
     link.click();
 }
 </script>
-
-</body>
-</html>
